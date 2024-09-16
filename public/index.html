@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat App</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+      }
+      #messages {
+        border: 1px solid #ccc;
+        padding: 10px;
+        width: 300px;
+        height: 200px;
+        overflow-y: scroll;
+      }
+      #messages p {
+        background-color: #f1f1f1;
+        padding: 5px;
+        border-radius: 5px;
+        margin-bottom: 5px;
+      }
+      #message {
+        width: 200px;
+        margin-right: 10px;
+      }
+      button {
+        padding: 5px 10px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Chat Application</h1>
+
+    <div>
+      <input type="text" id="message" placeholder="Enter Message" />
+      <button id="sendBtn">Send</button>
+    </div>
+
+    <div id="messages"></div>
+
+    <!-- Socket.io library -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io();
+      const sendBtn = document.getElementById("sendBtn");
+      const messageInput = document.getElementById("message");
+      const allMessages = document.getElementById("messages");
+
+      // Function to display a message in the chatbox
+      function displayMessage(message) {
+        const p = document.createElement("p");
+        p.innerText = message;
+        allMessages.appendChild(p);
+        allMessages.scrollTop = allMessages.scrollHeight; // Auto-scroll to bottom
+      }
+
+      // Listening for server messages and displaying them
+      socket.on("message", (data) => {
+        console.log("Message received:", data);
+        displayMessage(`${data.user}: ${data.text}`);
+      });
+
+      // Sending a user message to the server
+      sendBtn.addEventListener("click", () => {
+        const message = messageInput.value;
+        if (message.trim()) {
+          console.log("Sending message:", message);
+          socket.emit("sendMessage", message); // Emit message event
+          messageInput.value = ""; // Clear input after sending
+        }
+      });
+    </script>
+  </body>
+</html>

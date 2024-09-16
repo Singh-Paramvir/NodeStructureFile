@@ -3,18 +3,18 @@ import {
   Model
 }  from 'sequelize';
 interface UserAttributes{
-firstname:string;
-email:string;
-password:string;
+senderSocketId:string,
+receiverSocketId:string,
+message:string
 
 
 }
 module.exports = (sequelize:any, DataTypes:any) => {
-  class  User extends Model<UserAttributes>
+  class  Message extends Model<UserAttributes>
   implements UserAttributes {
-    firstname!:string;
-    email!:string;
-    password!:string;
+    senderSocketId!:string;
+    receiverSocketId!:string;
+    message!:string
     /**
      * Helper method for defining associations.
      * This method is not a part of Sequelize lifecycle.
@@ -24,14 +24,14 @@ module.exports = (sequelize:any, DataTypes:any) => {
       // define association here
     }
   };
-  User.init({
-    firstname:{type:DataTypes.STRING,},
-    email:{type:DataTypes.STRING},
-    password:{type:DataTypes.STRING}
+  Message.init({
+    senderSocketId:{type:DataTypes.STRING},
+    receiverSocketId:{type:DataTypes.STRING},
+    message:{type:DataTypes.STRING}
  
   }, {
     sequelize,
-    modelName: 'Users',
+    modelName: 'Messages',
   });
-  return  User;
+  return  Message;
 };

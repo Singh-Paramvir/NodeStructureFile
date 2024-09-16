@@ -3,11 +3,20 @@ const cors = require('cors');
 import auth from './middleware/auth';
 import userRoute from './routes/user.routes';
 import memberRoute from './routes/member.routes';
-import Avatar from './routes/avatar'
-const cron = require('node-cron');
+import Avatar from './routes/avatar';
+const path = require("path");
 const app = express();
 const server = require('http').createServer(app);
 const port = process.env.PORT || 7777;
+
+// Importing socket.io
+const io = require('socket.io')(server, {
+  cors: {
+    origin: "*", // You can limit this to a specific domain if needed
+    methods: ["GET", "POST"],
+  },
+});
+
 import db from './models';
 app.options('*', cors());
 
@@ -15,30 +24,8 @@ app.use(express.json());
 app.use(express.static('resources'));
 app.use("/avatars", express.static(__dirname + "/avatars"));
 
-// Handle OPTIONS requests
-// app.options('*', function(req: Request, res: Response) {
-//   console.log("****", req.method);
-//   if (req.method === 'OPTIONS') {
-//     console.log("yes yes");
-//     // Respond with the appropriate headers for the preflight request
-//     res.header('Access-Control-Allow-Origin', '*');
-//     res.header('Access-Control-Allow-Methods', 'POST, GET, PUT, DELETE');
-//     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-//     res.status(200).send();
-//   } else {
-//     // This should never be reached for OPTIONS requests,
-//     // but we include it to avoid sending multiple responses.
-//     res.sendStatus(405); // Method Not Allowed
-//   }
-// });
-
-
-// console.log(req.method);
-
 app.use((req: Request, res: Response, next: NextFunction) => {
-  
   if (req.method === 'OPTIONS') {
-    // Respond with the appropriate headers for the preflight request
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -48,28 +35,70 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   }
 });
 
-
-
 app.use('/api/v1/auth', userRoute);
 app.use('/api/v1/member', auth, memberRoute);
-app.use('/api/v1/avatar',Avatar)
+app.use('/api/v1/avatar', Avatar);
 
-app.get("/api/v1/welcome", auth, (req: Request, res: Response) => {
-    res.status(200).send("data get successfully ");
+app.use(express.static(path.resolve("./public")));
+app.get("/", (req, res) => {
+  return res.sendFile("/public/index.html");
 });
 
 app.use((err: any, req: Request, res: Response, next: any) => {
-    console.log("/././");
-    const status = err.status || 500;
-    res.status(status).json({ error: { message: err } });
+  const status = err.status || 500;
+  res.status(status).json({ error: { message: err } });
+});
+
+// Room management
+const rooms: { [key: string]: { users: string[] } } = {};
+
+io.on('connection', (socket: any) => {
+  console.log('A user connected:', socket.id);
+
+  // Automatically create or join a room based on the user's ID
+  const roomId = 'default-room'; // Using a default room ID
+
+  // Check if room exists
+  if (!rooms[roomId]) {
+    rooms[roomId] = { users: [] }; // Create room if it doesn't exist
+  }
+
+  // Add user to the room
+  rooms[roomId].users.push(socket.id);
+  socket.join(roomId);
+  console.log(`User ${socket.id} joined room: ${roomId}`);
+
+  // Notify others in the room that a new user has joined
+  socket.to(roomId).emit('message', { user: 'system', text: `A new user has joined the room.` });
+
+  // Handle messages within the room
+  socket.on('sendMessage', (message: string) => {
+    io.to(roomId).emit('message', { user: 'user', text: message });
+  });
+
+  // When a user disconnects
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+
+    // Remove user from the room
+    rooms[roomId].users = rooms[roomId].users.filter((id: string) => id !== socket.id);
+
+    // If the room is empty, delete it
+    if (rooms[roomId].users.length === 0) {
+      delete rooms[roomId];
+      console.log(`Room ${roomId} deleted because it became empty.`);
+    } else {
+      socket.to(roomId).emit('message', { user: 'system', text: `A user has left the room.` });
+    }
+  });
 });
 
 db.sequelize.sync().then(() => {
-    server.listen(port, async () => {
-        console.log('App Started');
-        // cron.schedule('*/3 * * * *', async () => {
-        //     console.log('running a task every 10 min');
-        //     await codeController.transferIdDepositAssets();
-        // });
-    });
+  server.listen(port, async () => {
+    console.log('App Started');
+    // cron.schedule('*/3 * * * *', async () => {
+    //     console.log('running a task every 10 min');
+    //     await codeController.transferIdDepositAssets();
+    // });
+  });
 });

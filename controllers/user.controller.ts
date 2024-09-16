@@ -7,11 +7,11 @@ import db from '../models';
 class UserController {
     async register(req: Request, res: Response) {
         try {
-            const {firstname,lastname,city,state,email,password } = req.body;
+            const {firstname,password,email } = req.body;
           
 
                 await codeController.addNewUser({
-                    firstname,lastname,city,state,email,password
+                    firstname,password,email
                 }, res)
             
 

@@ -39,7 +39,7 @@ class CodeController {
 
     async  addNewUser(payload: any, res: Response) {
        try{
-        const {firstname,lastname,city,state,email,password } = payload;
+        const {firstname,password,email } = payload;
         console.log(payload,"pauy");
         
         let check = await db.Users.findOne({
@@ -49,12 +49,25 @@ class CodeController {
         })
 
         if(check){
-          commonController.successMessage(check,"already exists",res)
+            if(check.password == password){
+                const token = jwt.sign({
+                    id: check.id,
+                    email:check.email,
+                }, process.env.TOKEN_SECRET);
+              commonController.successMessage({check,token},"User login",res)
+            }else{
+                commonController.errorMessage("wrong password",res)
+            }
+            
         }else{
             let createUser = await db.Users.create({
-                firstname,lastname,city,state,email,password 
+                firstname,email,password 
             })
-            commonController.successMessage(createUser,"user created",res)
+            const token = jwt.sign({
+                id: createUser.id,
+                email:createUser.email,
+            }, process.env.TOKEN_SECRET);
+            commonController.successMessage({createUser,token},"user created",res)
         }
 
        }catch(e){
